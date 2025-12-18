@@ -1,104 +1,162 @@
-const PostModel = require('../models/Post');
+const PostModel = require("../models/Post");
 
 exports.createPost = async (req, res) => {
-    const { title, cover, content, summary, author } = req.body;
-    if (!title || !cover || !content || !summary || !author) {
-        return res.status(400).send({ message: "Please provide all fields" });
+  const { title, cover, content, summary } = req.body;
+    const authorId = req.authorId;
+  if (!title || !cover || !content || !summary ) {
+    return res.status(400).send({ message: "Please provide all fields" });
+  }
+  try {
+    const existingPost = await PostModel.findOne({ title });
+    if (existingPost) {
+      return res.status(400).send({ message: "Post title is already used" });
     }
-    try {
-        const existingPost = await PostModel.findOne({ title });
-        if (existingPost) {
-            return res.status(400).send({ message: "Post title is already used" });
-        }
     const postDoc = await PostModel.create({
-        title,
-        cover,
-        content,
-        summary,
-        author,
+      title,
+      cover,
+      content,
+      summary,
+      author: authorId,
     });
-   if (!postDoc) {
-    return res.status(404).send({ message: "Failed to create post" });
-   }
-   res.send({ message: "Post created successfully", data:postDoc });
-}catch (error) {
-    res.status(500).send({ message:  error.message || "Someting occurred while creating a new post" });
-}
+    if (!postDoc) {
+      return res.status(404).send({ message: "Failed to create post" });
+    }
+    res.send({ message: "Post created successfully", data: postDoc });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Someting occurred while creating a new post",
+    });
+  }
 };
 
 exports.getAllPost = async (req, res) => {
-    try {
-        const posts = (await PostModel.find().populate("author", ["username"])).sort({ createdAt: -1 }).limit(20);
-        if (!posts) {
-            return res.status(404).send({ message: "No posts found" });
-        }
-       res.send(posts);
-    } catch (error) {
-        res.status(500).send({ message:  error.message || "Someting occurred while fetching posts" });
+  try {
+    const posts = await PostModel.find()
+      .populate("author", "username")
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    if (!posts) {
+      return res.status(404).send({ message: "No posts found" });
     }
+    res.send(posts);
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Someting occurred while fetching posts",
+    });
+  }
 };
-// exports.getAllPosts = async (req, res) => {
-//     try {
-//         const posts = await PostModel.findAll().populate('author', 'username');
-//         res.status(200).json(posts);
-//     } catch (error) {
-//         console.error("Error fetching posts:", error);
-//         res.status(500).json({ message: "Internal server error.", error: error.message });
-//     }
-  
-// }
-// exports.getPostById = async (req, res) => {
-//     try {
-//         const postId = req.params.id;
-//         const post = await PostModel.findById(postId).populate('author', 'username');   
-//         if (!post) {
-//             return res.status(404).json({ message: "Post not found." });
-//         }
-//         res.status(200).json(post);
-//     } catch (error) {
-//         console.error("Error fetching post by ID:", error);
-//         res.status(500).json({ message: "Internal server error.", error: error.message });
-//     }
- 
-// }
-// exports.getPostsByAuthor = async (req, res) => {
-//    try {
-//         const authorId = req.params.authorId;
-//         const posts = await PostModel.find({ author: authorId }).populate('author', 'username');
-//         res.status(200).json(posts);
-//     } catch (error) {
-//         console.error("Error fetching posts by author:", error);
-//         res.status(500).json({ message: "Internal server error.", error: error.message });
-//     }
-// }
-// exports.updatePost = async (req, res) => {
-//  try {
-//     const postId = req.params.id;
-//     const { title, cover, content, summary,author } = req.body;
-//     const updatedPost = await PostModel.findByIdAndUpdate(
-//         postId,
-//         { title, cover, content, summary, author },
-//         { new: true }
-//     ).populate('author', 'username');
-//     if (!updatedPost) {
-//         return res.status(404).json({ message: "Post not found." });
-//     }
-//     res.status(200).json(updatedPost);
-//  } catch (error) {
-//     console.error("Error updating post:", error);
-//     res.status(500).json({ message: "Internal server error.", error: error.message });
-//  }
-// }
-// exports.deletePost = async (req, res) => {
-//     try {
-//         const postId = req.params.id;
-//         const deletedPost = await PostModel.findByIdAndDelete(postId);
-//         if (!deletedPost) {
-//             return res.status(404).json({ message: "Post not found." });
-//         }
-//         res.status(200).json({ message: "Post deleted successfully." });
-//     } catch (error) {
-//         console.error("Error deleting post:", error);
-//         res.status(500).json({ message: "Internal server error.", error: error.message });
-//     }
-// }
+
+exports.getById = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).send({ message: "Post ID is required" });
+  }
+  try {
+    const post = await PostModel.findById(id)
+      .populate("author", "username")
+      .sort({ createdAt: -1 })
+      .limit(20);
+    if (!post) {
+      return res.status(404).send({ message: "Post not found" });
+    }
+    res.send(post);
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Someting occurred while fetching the post",
+    });
+  }
+};
+
+exports.getByAuthorId = async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).send({ message: "Post ID is missing" });
+  }
+  try {
+    const posts = await PostModel.find({ author: id })
+      .populate("author", "username")
+      .sort({ createdAt: -1 })
+      .limit(20);
+    if (!posts) {
+      return res
+        .status(404)
+        .send({ message: "No posts found for this author" });
+    }
+    res.send(posts);
+  } catch (error) {
+    res.status(500).send({
+      message:
+        error.message || "Someting occurred while fetching posts by author",
+    });
+  }
+};
+
+exports.upDatePost = async (req, res) => {
+  const { id } = req.params;
+  const authorId = req.authorId;
+  if (!id) {
+    return res.status(400).send({ message: "Post ID is missing" });
+  }
+
+  const { title, cover, content, summary } = req.body;
+  if (!title || !cover || !content || !summary ) {
+    return res.status(400).send({ message: "Please provide all fields" });
+  }
+  try {
+    const postDoc = await PostModel.findOne({ _id: id, author: authorId });
+    if (!postDoc) {
+      return res.status(404).send({ message: "Post not found " });
+    }
+    if (postDoc.length === 0) {
+      return res
+        .status(403)
+        .send({ message: "You are not authorized to update this post" });
+    } else {
+      //      postDoc.title = title;
+      //  postDoc.cover = cover;
+      //  postDoc.content = content;
+      //  postDoc.summary = summary;
+      //  await postDoc.save();
+      const newPost = await PostModel.findByIdAndUpdate(
+        { author: authorId, _id: id },
+        { title, cover, content, summary },
+        {
+          new: true,
+        }
+      );
+      if (!newPost) {
+        return res.status(500).send({ message: "Cannot update this post " });
+      }
+      res.send({ message: "Post updated successfully", data: postDoc });
+    }
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Someting occurred while updating the post",
+    });
+  }
+};
+
+exports.deletePost = async (req, res) => {
+  const { id } = req.params;
+  const authorId = req.authorId;
+  if (!id) {
+    return res.status(400).send({ message: "Post ID is missing" });
+  }
+//   if (!authorId) {
+//     return res.status(400).send({ message: "Author Id is missing" });
+//   }
+
+  try {
+    const postDoc = await PostModel.findOneAndDelete({ author:authorId, _id: id });
+    if (!postDoc) {
+      return res.status(500).send({ message: "Cannot delete this post " });
+    }
+    res.send({ message: "Post deleted successfully" });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Someting occurred while deleting the post",
+    });
+  }
+};
+
